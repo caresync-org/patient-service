@@ -13,7 +13,7 @@ jobs:
 
   sonarqube:
     name: "Job 1 — SonarQube"
-    uses: caresync-org/template-ci/.github/workflows/template-sonarqube.yml@main
+    uses: caresync-org/template-ci/.github/workflows/template-sonarqube.yml@dev
     with:
       service_name:      "patient"
       service_path:      "."
@@ -29,7 +29,7 @@ jobs:
   build-snyk:
     name: "Job 2 — Install & Snyk"
     needs: sonarqube
-    uses: caresync-org/template-ci/.github/workflows/template-build-snyk.yml@main
+    uses: caresync-org/template-ci/.github/workflows/template-build-snyk.yml@dev
     with:
       service_name: "patient"
       service_path: "."
@@ -43,7 +43,7 @@ jobs:
   docker:
     name: "Job 3 — Docker Build, Trivy & Push"
     needs: build-snyk
-    uses: caresync-org/template-ci/.github/workflows/template-docker.yml@main
+    uses: caresync-org/template-ci/.github/workflows/template-docker.yml@dev
     with:
       service_name:      "patient"
       service_path:      "."
@@ -61,7 +61,7 @@ jobs:
     name: "Job 4 — Approval Gate"
     needs: docker
     if: github.ref_name == 'production' && needs.docker.outputs.is_pr == 'false'
-    uses: caresync-org/template-ci/.github/workflows/template-approval.yml@main
+    uses: caresync-org/template-ci/.github/workflows/template-approval.yml@dev
     with:
       service_name: "patient"
       full_image:   ${{ needs.docker.outputs.full_image }}
@@ -78,7 +78,7 @@ jobs:
         github.ref_name == 'dev' ||
         (github.ref_name == 'production' && needs.approval.result == 'success')
       )
-    uses: caresync-org/template-ci/.github/workflows/template-cd.yml@main
+    uses: caresync-org/template-ci/.github/workflows/template-cd.yml@dev
     with:
       service_name:         "patient"
       image_tag:            ${{ needs.docker.outputs.image_tag }}
