@@ -1,0 +1,39 @@
+# =============================================================================
+# Patient Service — CI/CD Trigger Workflow
+# Repository : caresync-org/patient-service
+# File       : .github/workflows/patient.yml
+# =============================================================================
+
+name: Patient Service CI/CD
+
+on:
+  push:
+    branches: [dev, production]
+  pull_request:
+    branches: [dev, production]
+
+jobs:
+  pipeline:
+    name: "Patient — Full Pipeline"
+    uses: medimesh-org/template-ci/.github/workflows/main-template.yml@main
+
+    with:
+      service_name:         "patient"
+      service_path:         "."
+      docker_image_name:    "medimesh-patient"
+      sonar_project_key:    "medimesh-patient"
+      values_key:           "patient.image.tag"
+      node_version:         "20"
+      manifest_repo:        "medimesh-org/argocd-manifests"
+      manifest_values_path: "values.yaml"
+
+    secrets:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN:    ${{ secrets.DOCKERHUB_TOKEN }}
+      SNYK_TOKEN:         ${{ secrets.SNYK_TOKEN }}
+      SONARQUBE_TOKEN:    ${{ secrets.SONARQUBE_TOKEN }}
+      SONARQUBE_URL:      ${{ secrets.SONARQUBE_URL }}
+      MANIFEST_REPO_PAT:  ${{ secrets.MANIFEST_REPO_PAT }}
+      SMTP_USERNAME:      ${{ secrets.SMTP_USERNAME }}
+      SMTP_PASSWORD:      ${{ secrets.SMTP_PASSWORD }}
+      ALERT_EMAIL:        ${{ secrets.ALERT_EMAIL }}
