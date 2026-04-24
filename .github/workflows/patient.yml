@@ -1,9 +1,6 @@
 # =============================================================================
-# Patient Service — CI/CD Trigger Workflow
-# Repository : caresync-org/patient-service
-# File       : .github/workflows/patient.yml
+# CareSync — Patient Service CI/CD
 # =============================================================================
-
 name: Patient Service CI/CD
 
 on:
@@ -13,27 +10,111 @@ on:
     branches: [dev, production]
 
 jobs:
-  pipeline:
-    name: "Patient — Full Pipeline"
-    uses: medimesh-org/template-ci/.github/workflows/main-template.yml@main
 
+  sonarqube:
+    name: "Job 1 — SonarQube"
+    uses: caresync-org/template-ci/.github/workflows/template-sonarqube.yml@main
     with:
-      service_name:         "patient"
-      service_path:         "."
-      docker_image_name:    "medimesh-patient"
-      sonar_project_key:    "medimesh-patient"
-      values_key:           "patient.image.tag"
-      node_version:         "20"
-      manifest_repo:        "medimesh-org/argocd-manifests"
-      manifest_values_path: "values.yaml"
+      service_name:      "patient"
+      service_path:      "."
+      sonar_project_key: "caresync-patient"
+      node_version:      "20"
+    secrets:
+      SONARQUBE_TOKEN: ${{ secrets.SONARQUBE_TOKEN }}
+      SONARQUBE_URL:   ${{ secrets.SONARQUBE_URL }}
+      SMTP_USERNAME:   ${{ secrets.SMTP_USERNAME }}
+      SMTP_PASSWORD:   ${{ secrets.SMTP_PASSWORD }}
+      ALERT_EMAIL:     ${{ secrets.ALERT_EMAIL }}
 
+  build-snyk:
+    name: "Job 2 — Install & Snyk"
+    needs: sonarqube
+    uses: caresync-org/template-ci/.github/workflows/template-build-snyk.yml@main
+    with:
+      service_name: "patient"
+      service_path: "."
+      node_version: "20"
+    secrets:
+      SNYK_TOKEN:    ${{ secrets.SNYK_TOKEN }}
+      SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+      SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+      ALERT_EMAIL:   ${{ secrets.ALERT_EMAIL }}
+
+  docker:
+    name: "Job 3 — Docker Build, Trivy & Push"
+    needs: build-snyk
+    uses: caresync-org/template-ci/.github/workflows/template-docker.yml@main
+    with:
+      service_name:      "patient"
+      service_path:      "."
+      docker_image_name: "caresync-patient"
+      node_version:      "20"
     secrets:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
       DOCKERHUB_TOKEN:    ${{ secrets.DOCKERHUB_TOKEN }}
-      SNYK_TOKEN:         ${{ secrets.SNYK_TOKEN }}
-      SONARQUBE_TOKEN:    ${{ secrets.SONARQUBE_TOKEN }}
-      SONARQUBE_URL:      ${{ secrets.SONARQUBE_URL }}
       MANIFEST_REPO_PAT:  ${{ secrets.MANIFEST_REPO_PAT }}
       SMTP_USERNAME:      ${{ secrets.SMTP_USERNAME }}
       SMTP_PASSWORD:      ${{ secrets.SMTP_PASSWORD }}
       ALERT_EMAIL:        ${{ secrets.ALERT_EMAIL }}
+
+  approval:
+    name: "Job 4 — Approval Gate"
+    needs: docker
+    if: github.ref_name == 'production' && needs.docker.outputs.is_pr == 'false'
+    uses: caresync-org/template-ci/.github/workflows/template-approval.yml@main
+    with:
+      service_name: "patient"
+      full_image:   ${{ needs.docker.outputs.full_image }}
+      image_tag:    ${{ needs.docker.outputs.image_tag }}
+
+  cd:
+    name: "Job 5 — CD (ArgoCD)"
+    needs: [docker, approval]
+    if: |
+      always() &&
+      needs.docker.result == 'success' &&
+      needs.docker.outputs.is_pr == 'false' &&
+      (
+        github.ref_name == 'dev' ||
+        (github.ref_name == 'production' && needs.approval.result == 'success')
+      )
+    uses: caresync-org/template-ci/.github/workflows/template-cd.yml@main
+    with:
+      service_name:         "patient"
+      image_tag:            ${{ needs.docker.outputs.image_tag }}
+      full_image:           ${{ needs.docker.outputs.full_image }}
+      values_key:           "patient.image.tag"
+      manifest_repo:        "caresync-org/argocd-manifests"
+      manifest_values_path: "values.yaml"
+    secrets:
+      MANIFEST_REPO_PAT: ${{ secrets.MANIFEST_REPO_PAT }}
+      SMTP_USERNAME:     ${{ secrets.SMTP_USERNAME }}
+      SMTP_PASSWORD:     ${{ secrets.SMTP_PASSWORD }}
+      ALERT_EMAIL:       ${{ secrets.ALERT_EMAIL }}
+
+  notify-success:
+    name: "📧 Pipeline Success"
+    runs-on: ubuntu-latest
+    needs: [sonarqube, build-snyk, docker, cd]
+    if: success() && github.event_name != 'pull_request'
+    steps:
+      - name: Send success email
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          to: ${{ secrets.ALERT_EMAIL }}
+          from: "CareSync CI <${{ secrets.SMTP_USERNAME }}>"
+          subject: "✅ SUCCESS | caresync-patient | ${{ github.ref_name }} | Run #${{ github.run_number }}"
+          body: |
+            ✅ Pipeline SUCCEEDED
+
+            Service : caresync-patient
+            Image   : ${{ needs.docker.outputs.full_image }}
+            Branch  : ${{ github.ref_name }}
+            Commit  : ${{ github.sha }}
+            Author  : ${{ github.actor }}
+            Run     : https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
