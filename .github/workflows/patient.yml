@@ -44,8 +44,13 @@ jobs:
     name: "Job 3 — Docker Build, Trivy & Push"
     needs: build-snyk
     permissions:
+<<<<<<< HEAD
       security-events: write   
       contents: read           
+=======
+      security-events: write    # 👈 ADDED
+      contents: read            # 👈 ADDED
+>>>>>>> 61ece88 (fix: add patient workflow with permissions)
     uses: caresync-org/template-ci/.github/workflows/template-docker.yml@dev
     with:
       service_name:      "patient"
@@ -87,7 +92,7 @@ jobs:
       image_tag:            ${{ needs.docker.outputs.image_tag }}
       full_image:           ${{ needs.docker.outputs.full_image }}
       values_key:           "patient.image.tag"
-      manifest_repo:        "caresync-org/argocd-manifests"
+      manifest_repo:        "caresync-org/argoCD-manifests"
       manifest_values_path: "values.yaml"
     secrets:
       MANIFEST_REPO_PAT: ${{ secrets.MANIFEST_REPO_PAT }}
