@@ -43,6 +43,9 @@ jobs:
   docker:
     name: "Job 3 — Docker Build, Trivy & Push"
     needs: build-snyk
+    permissions:
+      security-events: write   
+      contents: read           
     uses: caresync-org/template-ci/.github/workflows/template-docker.yml@dev
     with:
       service_name:      "patient"
