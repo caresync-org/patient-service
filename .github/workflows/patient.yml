@@ -48,7 +48,7 @@ jobs:
     needs: build-snyk
     permissions:
       security-events: write
-      contents: read
+      contents: write           # 👈 CHANGED from read to write
     uses: caresync-org/template-ci/.github/workflows/template-docker.yml@dev
     with:
       service_name:      "patient"
