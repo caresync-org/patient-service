@@ -1,12 +1,18 @@
 # ── Stage 1: Install production deps ──────────────────────────────────────────
 FROM node:20-alpine AS builder
 
+# Fix OS level vulnerabilities
+RUN apk update && apk upgrade --no-cache
+
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --omit=dev
 
 # ── Stage 2: Run as non-root ───────────────────────────────────────────────────
 FROM node:20-alpine
+
+# Fix OS level vulnerabilities
+RUN apk update && apk upgrade --no-cache
 
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
