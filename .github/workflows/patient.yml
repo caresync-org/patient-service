@@ -43,6 +43,9 @@ jobs:
   docker:
     name: Docker Build + Push
     needs: build-and-snyk
+    permissions:
+      contents: write          # ✅ Required: github-tag-action creates Git tags
+      security-events: write   # ✅ Required: Trivy uploads security scan results
     uses: caresync-org/template-ci/.github/workflows/template-docker.yml@dev
     with:
       service_name: caresync-patient-service
