@@ -15,7 +15,7 @@ jobs:
   # ── Stage 1: SonarQube SAST ─────────────────────────────────────────────────
   sonarqube:
     name: SonarQube SAST
-    uses: caresync-org/template-ci/.github/workflows/template-sonarqube.yml@main
+    uses: caresync-org/template-ci/.github/workflows/template-sonarqube.yml@dev
     with:
       service_name: caresync-patient-service
     secrets:
@@ -29,7 +29,7 @@ jobs:
   build-and-snyk:
     name: Build + Snyk SCA
     needs: sonarqube
-    uses: caresync-org/template-ci/.github/workflows/template-build-snyk.yml@main
+    uses: caresync-org/template-ci/.github/workflows/template-build-snyk.yml@dev
     with:
       service_name: caresync-patient-service
       node_version: '20'
@@ -43,7 +43,7 @@ jobs:
   docker:
     name: Docker Build + Push
     needs: build-and-snyk
-    uses: caresync-org/template-ci/.github/workflows/template-docker.yml@main
+    uses: caresync-org/template-ci/.github/workflows/template-docker.yml@dev
     with:
       service_name: caresync-patient-service
       image_name: caresync-patient
@@ -59,7 +59,7 @@ jobs:
     name: Production Approval Gate
     needs: docker
     if: github.ref_name == 'production'
-    uses: caresync-org/template-ci/.github/workflows/template-approval-gate.yml@main
+    uses: caresync-org/template-ci/.github/workflows/template-approval-gate.yml@dev
     with:
       service_name: caresync-patient-service
       image_version: ${{ needs.docker.outputs.image_version }}
@@ -78,7 +78,7 @@ jobs:
       always() &&
       needs.docker.result == 'success' &&
       (needs.approval-gate.result == 'success' || needs.approval-gate.result == 'skipped')
-    uses: caresync-org/template-ci/.github/workflows/template-cd.yml@main
+    uses: caresync-org/template-ci/.github/workflows/template-cd.yml@dev
     with:
       service_name: caresync-patient-service
       service_key: patient
